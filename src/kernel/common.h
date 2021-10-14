@@ -183,6 +183,26 @@ uint64_t store_64byte_clwb(char *addr) {
     return t2 - t1;
 }
 
+uint64_t store_64byte_clwb_without_prefetch(char *addr)
+{
+    uint64_t t1 = 0, t2 = 0;
+    uint64_t value = 0xC0FFEEEEBABE0000;
+    KERNEL_BEGIN
+    asm volatile(LOAD_ADDR
+                     LOAD_VALUE
+                         // LOAD_CACHE_LINE
+                         CLEAR_PIPELINE
+                             TIMING_BEG
+                 "vmovdqa %%ymm0, 0*32(%%rsi) \n"
+                 "vmovdqa %%ymm0, 1*32(%%rsi) \n"
+                 "clwb (%%rsi) \n" TIMING_END
+                 : [t1] "=r"(t1), [t2] "=r"(t2)
+                 : [memarea] "r"(addr), [value] "m"(value)
+                 : REGISTERS);
+    KERNEL_END
+    return t2 - t1;
+}
+
 uint64_t store_64byte_clflushopt(char *addr) {
     uint64_t t1 = 0, t2 = 0;
     uint64_t value = 0xC0FFEEEEBABE0000;
@@ -222,6 +242,30 @@ uint64_t nstore_64byte_fence(char *addr) {
         : [t1] "=r" (t1), [t2] "=r" (t2)
         : [memarea] "r" (addr), [value] "m" (value)
         : REGISTERS);
+    KERNEL_END
+    return t2 - t1;
+}
+
+uint64_t nstore_64byte_fence_with_cacheline_prefetched(char *addr)
+{
+    uint64_t t1 = 0, t2 = 0;
+    uint64_t value = 0xC0FFEEEEBABE0000;
+    KERNEL_BEGIN
+    /*
+     * vmovntpd: 32-byte non-temporal store (check below)
+     * https://software.intel.com/en-us/node/524246
+     */
+    asm volatile(LOAD_ADDR
+                     LOAD_VALUE
+                         // FLUSH_CACHE_LINE
+                         LOAD_CACHE_LINE
+                             CLEAR_PIPELINE
+                                 TIMING_BEG
+                 "vmovntpd %%ymm0, 0*32(%%rsi) \n"
+                 "vmovntpd %%ymm0, 1*32(%%rsi) \n" TIMING_END
+                 : [t1] "=r"(t1), [t2] "=r"(t2)
+                 : [memarea] "r"(addr), [value] "m"(value)
+                 : REGISTERS);
     KERNEL_END
     return t2 - t1;
 }
@@ -993,9 +1037,11 @@ enum latency_tasks {
     store_clflush_64,
 #ifdef AEP_SUPPORTED
     store_clwb_64,
+    store_clwb_64_without_prefetch,
     store_clflushopt_64,
 #endif
     nstore_fence_64,
+    nstore_fence_64_with_cacheline_prefetched,
     store_fence_movq_64,
     store_clflush_movq_64,
     load_fence_movq_64,
@@ -1038,7 +1084,9 @@ static const int latency_tasks_skip[BASIC_OPS_TASK_COUNT] = {
 #ifdef AEP_SUPPORTED
 64,
 64,
+64,
 #endif
+64,
 64,
 64,
 64,
@@ -1079,9 +1127,11 @@ static const char *latency_tasks_str[BASIC_OPS_TASK_COUNT] = {
     "store-clflush-64",
 #ifdef AEP_SUPPORTED
     "store-clwb-64",
+    "store-clwb-64-without-prefetch"
     "store-clflushopt-64",
 #endif
     "nstore-fence-64",
+    "nstore-fence-64-with-cacheline-prefetched",
     "store-fence-movq-64",
     "store-clflush-movq-64",
     "load-fence-movq-64",
@@ -1122,9 +1172,11 @@ uint64_t (*bench_func[BASIC_OPS_TASK_COUNT])(char *) = {
     &store_64byte_clflush,
 #ifdef AEP_SUPPORTED
     &store_64byte_clwb,
+    &store_64byte_clwb_without_prefetch,
     &store_64byte_clflushopt,
 #endif
     &nstore_64byte_fence,
+    &nstore_64byte_fence_with_cacheline_prefetched,
     &store_64byte_fence_movq,
     &store_64byte_clflush_movq,
     &load_64byte_fence_movq,
