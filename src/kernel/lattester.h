@@ -82,7 +82,7 @@
 #define MB			0x100000
 #define GB			0x40000000
 
-#define DIMM_SIZE				(256UL * GB)
+#define DIMM_SIZE				(128UL * GB)
 #define GLOBAL_WORKSET_NI		(1UL << GLOBAL_BIT_NI)
 
 

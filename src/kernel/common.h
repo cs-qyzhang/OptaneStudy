@@ -256,13 +256,14 @@ uint64_t nstore_64byte_fence_with_cacheline_prefetched(char *addr)
      * https://software.intel.com/en-us/node/524246
      */
     asm volatile(LOAD_ADDR
-                     LOAD_VALUE
-                         // FLUSH_CACHE_LINE
-                         LOAD_CACHE_LINE
-                             CLEAR_PIPELINE
-                                 TIMING_BEG
+                 LOAD_VALUE
+                 // FLUSH_CACHE_LINE
+                 LOAD_CACHE_LINE
+                 CLEAR_PIPELINE
+                 TIMING_BEG
                  "vmovntpd %%ymm0, 0*32(%%rsi) \n"
-                 "vmovntpd %%ymm0, 1*32(%%rsi) \n" TIMING_END
+                 "vmovntpd %%ymm0, 1*32(%%rsi) \n"
+                 TIMING_END
                  : [t1] "=r"(t1), [t2] "=r"(t2)
                  : [memarea] "r"(addr), [value] "m"(value)
                  : REGISTERS);
@@ -1127,7 +1128,7 @@ static const char *latency_tasks_str[BASIC_OPS_TASK_COUNT] = {
     "store-clflush-64",
 #ifdef AEP_SUPPORTED
     "store-clwb-64",
-    "store-clwb-64-without-prefetch"
+    "store-clwb-64-without-prefetch",
     "store-clflushopt-64",
 #endif
     "nstore-fence-64",

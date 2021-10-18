@@ -19,6 +19,8 @@
 #include <asm/simd.h>
 #include <asm/fpu/api.h>
 #include <linux/kthread.h>
+#include <linux/kconfig.h>
+#include <linux/cpufreq.h>
 #include "lattester.h"
 #include "memaccess.h"
 #include "common.h"
@@ -27,7 +29,7 @@
 #include "perf_util.h"
 #endif
 
-//#define KSTAT 1
+#define KSTAT 1
 
 #define kr_info(string, args...) \
             do { printk(KERN_INFO "{%d}" string, ctx->core_id, ##args); } while (0)
@@ -108,6 +110,12 @@ int latency_job(void *arg)
 #endif
 	u8 hash = 0;
 	int skip;
+
+	unsigned cpu = cpumask_first(cpu_online_mask);
+	while (cpu < nr_cpu_ids) {
+			pr_info("CPU: %u, freq: %u kHz\n", cpu, cpufreq_cpu_get(cpu));
+			cpu = cpumask_next(cpu, cpu_online_mask);
+	}
 
 	kr_info("BASIC_OP at smp id %d\n", smp_processor_id());
 	rpages = roundup((2 * BASIC_OPS_TASK_COUNT + 1) * LATENCY_OPS_COUNT * sizeof(long), PAGE_SIZE) >> PAGE_SHIFT;
