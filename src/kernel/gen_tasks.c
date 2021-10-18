@@ -39,9 +39,9 @@ int main(int argc, char **argv)
 	{
 		fprintf(fp, "tasks = [\n");
 		for (i = 0; i < BASIC_OPS_TASK_COUNT; i++)
-			fprintf(fp, "\t'%s-seq',\n", latency_tasks_str[i]);
+			fprintf(fp, "\t'%s-seq',\n", latency_tasks[i].name);
 		for (i = 0; i < BASIC_OPS_TASK_COUNT; i++)
-			fprintf(fp, "\t'%s-rand',\n", latency_tasks_str[i]);
+			fprintf(fp, "\t'%s-rand',\n", latency_tasks[i].name);
 
 		fprintf(fp, "]\n");
 		fprintf(fp, "dd='dd if=%s of=/tmp/dump bs=%dM skip=1 count=%d'\n", argv[1], ops_mb, BASIC_OPS_TASK_COUNT * 2);

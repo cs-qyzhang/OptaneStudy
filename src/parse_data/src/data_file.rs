@@ -11,25 +11,22 @@ pub fn create(path: &Path) {
     }
 }
 
-pub fn read_one_op(path: &Path, data: &mut [u64; TASK_OPS]) -> usize {
+pub fn read(path: &Path, data: &mut [u64], pos: u64, cnt: u64) -> u64 {
     let mut file = File::open(path).unwrap();
 
-    file.seek(SeekFrom::Start((TASK_OPS * std::mem::size_of::<u64>()) as u64)).unwrap();
+    file.seek(SeekFrom::Start(pos)).unwrap();
 
-    let data_size = std::mem::size_of_val(data);
     let mut data_u8 = unsafe {
         std::slice::from_raw_parts_mut(
             data.as_mut_ptr() as *mut u8,
-            data_size)
+            std::mem::size_of_val(data))
     };
 
-    println!("data size: {}", std::mem::size_of_val(data_u8));
-    let mut readed_size: usize = 0;
-    while readed_size < data_size {
+    let mut readed_size: u64 = 0;
+    while readed_size < cnt {
         let read_size = file.read(data_u8).unwrap();
-        readed_size += read_size;
+        readed_size += read_size as u64;
         data_u8 = &mut data_u8[read_size..];
-        println!("{}, {}", read_size, std::mem::size_of_val(data_u8));
     }
     readed_size
 }

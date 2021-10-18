@@ -1,2 +1,12 @@
-/parse_data/target
-/parse_data/data.txt
+/src/parse_data/target
+*data.txt
+/src/kernel/*.cmd
+/src/kernel/gen_tasks
+/src/kernel/*.d
+/src/kernel/*.a
+/src/kernel/*.o
+/src/kernel/*.ko
+/src/kernel/*.symvers
+/src/kernel/*.order
+/src/kernel/*.mod
+/src/kernel/*.mod.c
