@@ -30,10 +30,10 @@
  * Content on ReportFS
  *
  * Task 1: For random latency tests
- * | OP_COUNT * 8    |
- * +-----------------+---------------+---------------+-----+---------------+
- * |   Random Pool   | Report Task 0 | Report Task 1 | ... | Report Task N |
- * +-----------------+---------------+---------------+-----+---------------+
+ * | Task Info | OP_COUNT * 8    |
+ * +-----------+-----------------+---------------+---------------+-----+---------------+
+ * |           |   Random Pool   | Report Task 0 | Report Task 1 | ... | Report Task N |
+ * +-----------+-----------------+---------------+---------------+-----+---------------+
  *
  * Task 2: Strided latency
  * | OP_COUNT * 8  |

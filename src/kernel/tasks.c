@@ -93,15 +93,16 @@ inline void wait_for_stop(void)
  */
 int latency_job(void *arg)
 {
-	int i, j;
+	int i, j, k;
 	static unsigned long flags;
 	struct latencyfs_worker_ctx *ctx = (struct latencyfs_worker_ctx *)arg;
 	struct latency_sbi *sbi = ctx->sbi;
 	long *loc = (long *)sbi->rep->virt_addr;
 	u8 *buf;
-	long result;
+	long results[64];
+	long result_cnt;
 
-	long *rbuf;
+	uint64_t *rbuf;
 	int rpages;
 #ifdef KSTAT
 	long total;
@@ -113,8 +114,8 @@ int latency_job(void *arg)
 
 	unsigned cpu = cpumask_first(cpu_online_mask);
 	while (cpu < nr_cpu_ids) {
-			pr_info("CPU: %u, freq: %u kHz\n", cpu, cpufreq_cpu_get(cpu));
-			cpu = cpumask_next(cpu, cpu_online_mask);
+		pr_info("CPU: %u, freq: %u kHz\n", cpu, cpufreq_get(cpu));
+		cpu = cpumask_next(cpu, cpu_online_mask);
 	}
 
 	preempt_disable();
@@ -130,10 +131,30 @@ int latency_job(void *arg)
 		hash = hash ^ *buf;
 	}
 
+	/* write latency ops info */
+	buf = sbi->rep->virt_addr;
+	*(uint64_t*)buf = BASIC_OPS_TASK_COUNT * 2 - 1;
+	buf += sizeof(uint64_t);
+	*(uint64_t*)buf = LATENCY_OPS_COUNT;
+	buf += sizeof(uint64_t);
+	sprintf(buf, "%s", latency_tasks[0].name);
+	buf += 64;
+	for (i = 1; i < BASIC_OPS_TASK_COUNT; i++) {
+		sprintf(buf, "%s-seq", latency_tasks[i].name);
+		buf += 64;
+	}
+	for (i = 1; i < BASIC_OPS_TASK_COUNT; i++) {
+		sprintf(buf, "%s-rand", latency_tasks[i].name);
+		buf += 64;
+	}
+
+	rbuf = (uint64_t *)(sbi->rep->virt_addr + (2 * LATENCY_OPS_COUNT) * sizeof(uint64_t));
+
 	/* Sequential */
 	for (i = 0; i < BASIC_OPS_TASK_COUNT; i++)
 	{
 		struct latency_task task = latency_tasks[i];
+
 		/* fill page tables */
 		for (j = 0; j < BASIC_OP_POOL_PAGES; j++)
 		{
@@ -150,20 +171,22 @@ int latency_job(void *arg)
 		min = 0xffffffff;
 		max = 0;
 #endif
-		rbuf = (long *)(sbi->rep->virt_addr + (i + 1) * LATENCY_OPS_COUNT * sizeof(long));
 		BENCHMARK_BEGIN(flags);
-		for (j = 0; j < LATENCY_OPS_COUNT; j++)
+		j = 0;
+		while (j < LATENCY_OPS_COUNT)
 		{
-			result = task.bench_func(buf);
+			result_cnt = task.bench_func(buf, results);
 			buf += skip;
-			rbuf[j] = result;
+			for (k = 0; k < result_cnt; k++) {
+				rbuf[j++] = results[k];
 #ifdef KSTAT
-			if (result < min)
-				min = result;
-			if (result > max)
-				max = result;
-			total += result;
+				if (results[k] < min)
+					min = results[k];
+				if (results[k] > max)
+					max = results[k];
+				total += results[k];
 #endif
+			}
 		}
 		BENCHMARK_END(flags);
 #ifdef KSTAT
@@ -173,19 +196,21 @@ int latency_job(void *arg)
 		{
 			stddev += (rbuf[j] - average) * (rbuf[j] - average);
 		}
-		kr_info("[%d,%d]%s-seq avg %lu, stddev^2 %lu, max %lu, min %lu\n", i + 1, i, task.name, average, stddev / LATENCY_OPS_COUNT, max, min);
+		kr_info("[%d,%d]%s-seq avg %lu, stddev^2 %lu, max %lu, min %lu\n", i, i, task.name, average, stddev / LATENCY_OPS_COUNT, max, min);
 #else
 		kr_info("[%d,%d]%s-seq Done\n", i + 1, i, task.name);
 #endif
+		rbuf += LATENCY_OPS_COUNT;
 	}
 
 	/* Random, skip baseline bench */
 	for (i = 1; i < BASIC_OPS_TASK_COUNT; i++)
 	{
-		kr_info("Generating random bytes at %p, size %lx", loc, LATENCY_OPS_COUNT * 8);
-		get_random_bytes(sbi->rep->virt_addr, LATENCY_OPS_COUNT * 8);
-
 		struct latency_task task = latency_tasks[i];
+
+		kr_info("Generating random bytes at %p, size %lx", loc, LATENCY_OPS_COUNT * sizeof(uint64_t));
+		get_random_bytes(sbi->rep->virt_addr + LATENCY_OPS_COUNT * sizeof(uint64_t), LATENCY_OPS_COUNT * sizeof(long));
+
 		/* fill page tables */
 		for (j = 0; j < BASIC_OP_POOL_PAGES; j++)
 		{
@@ -200,19 +225,21 @@ int latency_job(void *arg)
 		min = 0xffffffff;
 		max = 0;
 #endif
-		rbuf = (long *)(sbi->rep->virt_addr + (i + BASIC_OPS_TASK_COUNT) * LATENCY_OPS_COUNT * sizeof(long));
 		BENCHMARK_BEGIN(flags);
-		for (j = 0; j < LATENCY_OPS_COUNT; j++)
+		j = 0;
+		while (j < LATENCY_OPS_COUNT)
 		{
-			result = task.bench_func(&buf[loc[j] & BASIC_OP_MASK]);
-			rbuf[j] = result;
+			result_cnt = task.bench_func(&buf[loc[j] & BASIC_OP_MASK], results);
+			for (k = 0; k < result_cnt; k++) {
+				rbuf[j++] = results[k];
 #ifdef KSTAT
-			if (result < min)
-				min = result;
-			if (result > max)
-				max = result;
-			total += result;
+				if (results[k] < min)
+					min = results[k];
+				if (results[k] > max)
+					max = results[k];
+				total += results[k];
 #endif
+			}
 		}
 		BENCHMARK_END(flags);
 
@@ -227,7 +254,9 @@ int latency_job(void *arg)
 #else
 		kr_info("[%d,%d]%s-rand done\n", i + BASIC_OPS_TASK_COUNT, i, task.name);
 #endif
+		rbuf += LATENCY_OPS_COUNT;
 	}
+
 	kr_info("hash %d", hash);
 	kr_info("LATTester_LAT_END:\n");
 	pr_info("Preempt Count: 0x%x\n", preempt_count());

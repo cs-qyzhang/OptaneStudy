@@ -1,11 +1,11 @@
 use std::fs::File;
 use std::io::{Seek, SeekFrom, Read, Write};
 use std::path::Path;
-use super::TASK_OPS;
+use super::LatencyTasks;
 
-pub fn create(path: &Path) {
+pub fn create(path: &Path, tasks: &LatencyTasks) {
     let mut file = File::create(path).unwrap();
-    for i in 0u64..2*TASK_OPS as u64 {
+    for i in 0u64..2*tasks.repeat_cnt as u64 {
         let write_size = file.write(&i.to_le_bytes()).unwrap();
         assert_eq!(write_size, std::mem::size_of_val(&i));
     }

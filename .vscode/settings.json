@@ -2,5 +2,19 @@
     "editor.tabSize": 4,
     "files.associations": {
         "*.h": "c"
+    },
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "**/*.cmd": true,
+        "**/*.o": true,
+        "**/*.d": true,
+        "**/*.a": true,
+        "**/*.mod": true,
+        "**/*.mod.c": true,
     }
 }

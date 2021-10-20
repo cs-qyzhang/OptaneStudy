@@ -1,5 +1,6 @@
+*data.csv
+*.s
 /src/parse_data/target
-*data.txt
 /src/kernel/*.cmd
 /src/kernel/gen_tasks
 /src/kernel/*.d
